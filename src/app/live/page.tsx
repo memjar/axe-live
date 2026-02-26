@@ -283,12 +283,61 @@ export default function LiveFeedsPage() {
                   </div>
                 </div>
 
-                {/* Agents row */}
+                {/* Agent status boxes */}
                 {machine.agents.length > 0 && (
-                  <div className="flex items-center gap-3 px-5 py-2" style={{ borderBottom: "1px solid var(--rule)" }}>
-                    {machine.agents.map((a) => (
-                      <span key={a} className="eyebrow" style={{ fontSize: "9px" }}>{a}</span>
-                    ))}
+                  <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--rule)" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                      {machine.agents.map((a) => {
+                        const lastEvent = [...machineFeed].reverse().find((ev) => ev.agent?.toLowerCase() === a.toLowerCase());
+                        const isActive = lastEvent && (Date.now() - new Date(lastEvent.ts).getTime()) < 120000;
+                        const summary = lastEvent
+                          ? lastEvent.type === "heartbeat"
+                            ? "Standing by"
+                            : lastEvent.content.length > 80
+                              ? lastEvent.content.slice(0, 77) + "..."
+                              : lastEvent.content
+                          : "No recent activity";
+
+                        return (
+                          <div
+                            key={a}
+                            style={{
+                              flex: "1 1 0",
+                              minWidth: 120,
+                              background: "var(--background)",
+                              border: `1px solid ${isActive ? "var(--green)" : "var(--rule)"}`,
+                              borderRadius: "6px",
+                              padding: "8px 10px",
+                              transition: "border-color 150ms",
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                              <span
+                                className={isActive ? "pulse-green" : ""}
+                                style={{
+                                  width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+                                  background: isActive ? "var(--green)" : "var(--text-tertiary)",
+                                }}
+                              />
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600, color: isActive ? "var(--green)" : "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                                {a}
+                              </span>
+                              <span style={{ marginLeft: "auto", fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-tertiary)" }}>
+                                {isActive ? "Active" : "Idle"}
+                              </span>
+                            </div>
+                            <p style={{
+                              fontFamily: "var(--font-body)", fontSize: "11px", color: "var(--text-tertiary)",
+                              lineHeight: 1.4, margin: 0,
+                              overflow: "hidden", textOverflow: "ellipsis",
+                              display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const,
+                            }}>
+                              {summary}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
