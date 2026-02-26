@@ -312,6 +312,7 @@ export default function Home() {
           <Link href="/" className="eyebrow" style={{ color: "var(--green)", textDecoration: "none" }}>Dashboard</Link>
           <Link href="/apps" className="eyebrow" style={{ color: "var(--text-tertiary)", textDecoration: "none" }}>Apps</Link>
           <Link href="/live" className="eyebrow" style={{ color: "var(--text-tertiary)", textDecoration: "none" }}>Live Feeds</Link>
+          <Link href="/team" className="eyebrow" style={{ color: "var(--text-tertiary)", textDecoration: "none" }}>Team</Link>
         </nav>
 
         <div className="flex items-center gap-2">

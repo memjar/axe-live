@@ -86,6 +86,9 @@ export default function AppsPage() {
             <Link href="/live" className="eyebrow" style={{ color: "var(--text-tertiary)", textDecoration: "none" }}>
               Live Feeds
             </Link>
+            <Link href="/team" className="eyebrow" style={{ color: "var(--text-tertiary)", textDecoration: "none" }}>
+              Team
+            </Link>
           </nav>
 
           <div className="ml-auto flex items-center gap-4">
