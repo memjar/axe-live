@@ -4,9 +4,10 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import AuthGate from "./auth-gate";
 
-const CHAT_CENTRE =
-  process.env.NEXT_PUBLIC_CHAT_CENTRE || "http://192.168.1.148:8081";
-const WS_URL = CHAT_CENTRE.replace(/^http/, "ws") + "/ws/live";
+const BACKEND =
+  process.env.NEXT_PUBLIC_AXE_BACKEND || "https://hdr.it.com.ngrok.pro";
+const CHAT_CENTRE = BACKEND + "/fleet/proxy/jla";
+const WS_URL = BACKEND.replace(/^https?/, "wss") + "/ws/live-relay";
 
 type Event = {
   type: string;

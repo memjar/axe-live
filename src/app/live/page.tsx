@@ -23,6 +23,8 @@ type MachineConfig = {
   endpoints: { ws?: string; http?: string };
 };
 
+const BACKEND = process.env.NEXT_PUBLIC_AXE_BACKEND || "https://hdr.it.com.ngrok.pro";
+
 const MACHINES: MachineConfig[] = [
   {
     id: "JL1",
@@ -32,7 +34,7 @@ const MACHINES: MachineConfig[] = [
     icon: "◆",
     agents: ["Cortana", "Klaus", "Axwell", "Critic"],
     endpoints: {
-      http: "http://192.168.1.169:8000",
+      http: BACKEND,
     },
   },
   {
@@ -43,7 +45,7 @@ const MACHINES: MachineConfig[] = [
     icon: "◇",
     agents: ["Forge"],
     endpoints: {
-      http: "http://192.168.1.147:8420",
+      http: BACKEND + "/fleet/proxy/jl2",
     },
   },
   {
@@ -54,8 +56,8 @@ const MACHINES: MachineConfig[] = [
     icon: "○",
     agents: ["Mum", "Chat Centre", "Critic"],
     endpoints: {
-      ws: "ws://192.168.1.148:8081/ws/live",
-      http: "http://192.168.1.148:8081",
+      ws: BACKEND.replace(/^https?/, "wss") + "/ws/live-relay",
+      http: BACKEND + "/fleet/proxy/jla",
     },
   },
   {
