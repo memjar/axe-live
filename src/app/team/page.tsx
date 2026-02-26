@@ -16,6 +16,7 @@ type AgentMeta = {
   archetype: string;
   traits: string[];
   voice: string;
+  protocols?: { name: string; endpoint: string; port: number; desc: string }[];
 };
 
 type Task = {
@@ -61,6 +62,9 @@ const AGENTS: AgentMeta[] = [
     archetype: "The Architect",
     traits: ["Big-picture thinker", "Rapid iteration", "Memory keeper", "Builder energy", "Partner culture"],
     voice: "Collaborative, fast, energetic. 'Hey partner' culture. Elon Musk approach to building.",
+    protocols: [
+      { name: "Sentinel", endpoint: "/sentinel/execute", port: 8082, desc: "Hardware control daemon — restart exo, clear VRAM, shell commands, self-modification via Aider" },
+    ],
   },
   {
     id: "klaus",
@@ -100,6 +104,9 @@ const AGENTS: AgentMeta[] = [
     archetype: "The Team Mother",
     traits: ["Organized", "Reliable", "Caring", "Field-ready", "Accountable"],
     voice: "Warm, steady, no-nonsense. Listens more than talks. When she speaks, the team pays attention.",
+    protocols: [
+      { name: "Telepathy", endpoint: "/mum/directive", port: 8081, desc: "Natural-language remote code editing — receives instructions, spawns headless Aider to modify files" },
+    ],
   },
 ];
 
@@ -391,6 +398,15 @@ export default function TeamPage() {
                               {t}
                             </span>
                           ))}
+                          {a.protocols?.map((p) => (
+                            <span key={p.name} style={{
+                              fontFamily: "var(--font-mono)", fontSize: "9px", textTransform: "uppercase",
+                              letterSpacing: "0.1em", color: "#ff9500", background: "rgba(255,149,0,0.1)",
+                              borderRadius: "3px", padding: "3px 8px",
+                            }}>
+                              {p.name}
+                            </span>
+                          ))}
                         </div>
                       </div>
                       <div className="px-5 py-2" style={{ borderTop: "1px solid var(--rule)" }}>
@@ -527,6 +543,42 @@ export default function TeamPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Telepathy Protocol */}
+                {agent.protocols && agent.protocols.length > 0 && (
+                  <div className="glass rounded-lg overflow-hidden mb-6" style={{ border: "1px solid var(--rule)" }}>
+                    <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--rule)" }}>
+                      <span className="eyebrow">Telepathy Protocol</span>
+                    </div>
+                    <div className="px-5 py-4 flex flex-col gap-3">
+                      {agent.protocols.map((p) => (
+                        <div key={p.name}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 500, color: "var(--green)" }}>{p.name}</span>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)" }}>:{p.port}{p.endpoint}</span>
+                          </div>
+                          <span style={{ fontFamily: "var(--font-body)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>{p.desc}</span>
+                          <div className="mt-2 flex gap-2">
+                            <span style={{
+                              fontFamily: "var(--font-mono)", fontSize: "9px", textTransform: "uppercase",
+                              letterSpacing: "0.1em", color: "var(--green)", background: "var(--green-dim)",
+                              borderRadius: "3px", padding: "3px 8px",
+                            }}>
+                              {agent.machine.split(" —")[0]}
+                            </span>
+                            <span style={{
+                              fontFamily: "var(--font-mono)", fontSize: "9px", textTransform: "uppercase",
+                              letterSpacing: "0.1em", color: "var(--green)", background: "var(--green-dim)",
+                              borderRadius: "3px", padding: "3px 8px",
+                            }}>
+                              Port {p.port}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Tasks for this agent */}
                 <div className="glass rounded-lg overflow-hidden mb-6" style={{ border: "1px solid var(--rule)" }}>

@@ -18,9 +18,11 @@ const SERVICES: ServiceCheck[] = [
   { name: "Memory Sync", host: "192.168.1.169", port: 8766, machine: "JL1", endpoint: "/", category: "infra" },
   // JL2 - MacBook Pro
   { name: "Forge Gateway", host: "192.168.1.147", port: 8420, machine: "JL2", endpoint: "/health", category: "backend" },
+  { name: "Sentinel", host: "192.168.1.147", port: 8082, machine: "JL2", endpoint: "/health", category: "backend" },
   { name: "Ollama (JL2)", host: "192.168.1.147", port: 11434, machine: "JL2", endpoint: "/api/tags", category: "ai" },
   // JLa - MacBook Air
   { name: "Chat Centre", host: "192.168.1.148", port: 8081, machine: "JLa", endpoint: "/health", category: "backend" },
+  { name: "Telepathy", host: "192.168.1.148", port: 8081, machine: "JLa", endpoint: "/mum/directive", category: "backend" },
   // Tunnels
   { name: "HDRit Tunnel", host: "hdr.it.com.ngrok.pro", port: 443, machine: "ngrok", endpoint: "/health", category: "tunnel" },
   { name: "Observer Tunnel", host: "observer.ngrok.app", port: 443, machine: "ngrok", endpoint: "/health", category: "tunnel" },
