@@ -15,13 +15,15 @@ const MACHINE_INFO: Record<string, { ip: string; services: { name: string; port:
     ip: "192.168.1.147",
     services: [
       { name: "Forge Gateway", port: 8420, endpoint: "/health", startCmd: "cd ~/forge-gateway && uvicorn main:app --host 0.0.0.0 --port 8420" },
+      { name: "Sentinel", port: 8082, endpoint: "/health", startCmd: "cd ~ && python3 -m uvicorn sentinel:app --host 0.0.0.0 --port 8082" },
       { name: "Ollama", port: 11434, endpoint: "/api/tags", startCmd: "ollama serve" },
     ],
   },
   JLa: {
     ip: "192.168.1.148",
     services: [
-      { name: "Chat Centre", port: 8081, endpoint: "/health", startCmd: "cd ~/chat-centre && python3 server.py" },
+      { name: "Chat Centre", port: 8081, endpoint: "/health", startCmd: "cd ~ && python3 -m uvicorn chat_centre:app --host 0.0.0.0 --port 8081" },
+      { name: "Telepathy", port: 8081, endpoint: "/mum/directive", startCmd: "Part of Chat Centre — starts with it" },
     ],
   },
   JLb: {
