@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import AuthGate from "./auth-gate";
 
 const CHAT_CENTRE =
   process.env.NEXT_PUBLIC_CHAT_CENTRE || "http://192.168.1.148:8081";
@@ -291,6 +292,7 @@ export default function Home() {
   }
 
   return (
+    <AuthGate>
     <div className="flex flex-col h-screen" style={{ background: "var(--background)" }}>
       {/* Doctrine: 2px green progress bar at top */}
       <div className="progress-bar" style={{ transform: `scaleX(${scrollProgress})` }} />
@@ -442,5 +444,6 @@ export default function Home() {
         </div>
       </div>
     </div>
+    </AuthGate>
   );
 }
