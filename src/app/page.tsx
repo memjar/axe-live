@@ -26,21 +26,8 @@ type Health = {
   memory: string;
 };
 
-const AGENT_COLORS: Record<string, string> = {
-  Forge: "border-emerald-500 bg-emerald-500/10",
-  Cortana: "border-purple-500 bg-purple-500/10",
-  Klaus: "border-blue-500 bg-blue-500/10",
-  Axwell: "border-red-500 bg-red-500/10",
-  Critic: "border-amber-500 bg-amber-500/10",
-};
-
-const AGENT_DOT: Record<string, string> = {
-  Forge: "bg-emerald-500",
-  Cortana: "bg-purple-500",
-  Klaus: "bg-blue-500",
-  Axwell: "bg-red-500",
-  Critic: "bg-amber-500",
-};
+// Doctrine: green is the ONE accent. Agent names differentiated by text only.
+const AGENTS = ["Forge", "Cortana", "Klaus", "Axwell", "Critic"];
 
 export default function Home() {
   const [events, setEvents] = useState<Event[]>([]);
@@ -50,7 +37,9 @@ export default function Home() {
   const [agent, setAgent] = useState("Forge");
   const [heavy, setHeavy] = useState(false);
   const [sending, setSending] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const feedRef = useRef<HTMLDivElement>(null);
+  const prevEventCount = useRef(0);
 
   // WebSocket connection
   useEffect(() => {
@@ -59,7 +48,6 @@ export default function Home() {
 
     function connect() {
       ws = new WebSocket(WS_URL);
-
       ws.onopen = () => setConnected(true);
       ws.onclose = () => {
         setConnected(false);
@@ -97,11 +85,26 @@ export default function Home() {
 
   // Auto-scroll
   useEffect(() => {
-    feedRef.current?.scrollTo({
-      top: feedRef.current.scrollHeight,
-      behavior: "smooth",
-    });
+    if (events.length > prevEventCount.current) {
+      feedRef.current?.scrollTo({
+        top: feedRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+    prevEventCount.current = events.length;
   }, [events]);
+
+  // Scroll progress tracking
+  useEffect(() => {
+    const el = feedRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const max = el.scrollHeight - el.clientHeight;
+      setScrollProgress(max > 0 ? el.scrollTop / max : 0);
+    };
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Fallback polling when WebSocket is down
   useEffect(() => {
@@ -138,24 +141,32 @@ export default function Home() {
   function renderEvent(ev: Event, i: number) {
     const time = ev.ts ? new Date(ev.ts).toLocaleTimeString() : "";
     const agentName = ev.agent || "System";
-    const colorClass =
-      AGENT_COLORS[agentName] || "border-gray-600 bg-gray-600/10";
-    const dotClass = AGENT_DOT[agentName] || "bg-gray-500";
+    const isNew = i >= events.length - 3;
 
     if (ev.type === "user_msg") {
       return (
-        <div key={i} className="flex justify-end">
-          <div className="max-w-[75%] rounded-lg border border-emerald-800 bg-emerald-900/20 px-4 py-3">
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-              <span className="text-emerald-400 font-medium">
-                {ev.source === "live_viewer" ? "Live Viewer" : "User"}
-              </span>
-              <span>to {agentName}</span>
-              <span className="ml-auto">{time}</span>
+        <div
+          key={i}
+          className={`flex justify-end ${isNew ? "animate-fade-in" : ""}`}
+        >
+          <div className="card-hover max-w-[75%] rounded-lg overflow-hidden"
+               style={{ border: "1px solid var(--rule)", background: "var(--card)" }}>
+            <div className="px-4 py-3" style={{ paddingTop: "14px" }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="eyebrow">
+                  {ev.source === "live_viewer" ? "Live" : "User"}
+                </span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)" }}>
+                  to {agentName}
+                </span>
+                <span className="ml-auto" style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)" }}>
+                  {time}
+                </span>
+              </div>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: "14px", color: "var(--foreground)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                {ev.content}
+              </p>
             </div>
-            <p className="text-sm text-gray-200 whitespace-pre-wrap">
-              {ev.content}
-            </p>
           </div>
         </div>
       );
@@ -163,21 +174,31 @@ export default function Home() {
 
     if (ev.type === "agent_reply") {
       return (
-        <div key={i} className="flex justify-start">
-          <div
-            className={`max-w-[75%] rounded-lg border-l-4 ${colorClass} px-4 py-3`}
-          >
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-              <span className={`w-2 h-2 rounded-full ${dotClass}`} />
-              <span className="font-medium text-gray-300">{agentName}</span>
-              {ev.engine && (
-                <span className="text-gray-600">({ev.engine})</span>
-              )}
-              <span className="ml-auto">{time}</span>
+        <div
+          key={i}
+          className={`flex justify-start ${isNew ? "animate-fade-in" : ""}`}
+        >
+          <div className="card-hover max-w-[75%] rounded-lg overflow-hidden"
+               style={{ border: "1px solid var(--rule)", background: "var(--card)" }}>
+            <div className="px-4 py-3" style={{ paddingTop: "14px" }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full inline-block" style={{ background: "var(--green)" }} />
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 500, color: "var(--foreground)" }}>
+                  {agentName}
+                </span>
+                {ev.engine && (
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)" }}>
+                    {ev.engine}
+                  </span>
+                )}
+                <span className="ml-auto" style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)" }}>
+                  {time}
+                </span>
+              </div>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: "14px", color: "var(--foreground)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                {ev.content}
+              </p>
             </div>
-            <p className="text-sm text-gray-200 whitespace-pre-wrap">
-              {ev.content}
-            </p>
           </div>
         </div>
       );
@@ -185,19 +206,27 @@ export default function Home() {
 
     if (ev.type === "swarm_turn") {
       return (
-        <div key={i} className="flex justify-start">
-          <div
-            className={`max-w-[85%] rounded-lg border-l-4 ${colorClass} px-4 py-3`}
-          >
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-              <span className={`w-2 h-2 rounded-full ${dotClass}`} />
-              <span className="font-medium text-gray-300">{agentName}</span>
-              <span className="text-orange-400">SWARM R{ev.round}</span>
-              <span className="ml-auto">{time}</span>
+        <div
+          key={i}
+          className={`flex justify-start ${isNew ? "animate-fade-in" : ""}`}
+        >
+          <div className="card-hover max-w-[85%] rounded-lg overflow-hidden"
+               style={{ border: "1px solid var(--rule)", borderLeft: "2px solid var(--green)", background: "var(--card)" }}>
+            <div className="px-4 py-3" style={{ paddingTop: "14px" }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full inline-block" style={{ background: "var(--green)" }} />
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 500, color: "var(--foreground)" }}>
+                  {agentName}
+                </span>
+                <span className="eyebrow">SWARM R{ev.round}</span>
+                <span className="ml-auto" style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)" }}>
+                  {time}
+                </span>
+              </div>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: "14px", color: "var(--foreground)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                {ev.content}
+              </p>
             </div>
-            <p className="text-sm text-gray-200 whitespace-pre-wrap">
-              {ev.content}
-            </p>
           </div>
         </div>
       );
@@ -205,9 +234,12 @@ export default function Home() {
 
     if (ev.type === "swarm_end") {
       return (
-        <div key={i} className="flex justify-center">
-          <div className="rounded-full border border-orange-700 bg-orange-900/20 px-4 py-1 text-xs text-orange-400">
-            Swarm {ev.status} — {agentName} called it
+        <div key={i} className={`flex justify-center ${isNew ? "animate-fade-in" : ""}`}>
+          <div className="rounded-full px-4 py-2"
+               style={{ border: "1px solid var(--rule)", background: "var(--card)" }}>
+            <span className="eyebrow">
+              Swarm {ev.status} — {agentName} called it
+            </span>
           </div>
         </div>
       );
@@ -215,20 +247,32 @@ export default function Home() {
 
     if (ev.type === "critic_action") {
       return (
-        <div key={i} className="flex justify-start">
-          <div className="max-w-[75%] rounded-lg border-l-4 border-amber-500 bg-amber-500/10 px-4 py-3">
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-              <span className="w-2 h-2 rounded-full bg-amber-500" />
-              <span className="font-medium text-gray-300">Critic</span>
-              <span className="text-amber-400">{ev.action}</span>
-              {ev.engine && (
-                <span className="text-gray-600">({ev.engine})</span>
-              )}
-              <span className="ml-auto">{time}</span>
+        <div
+          key={i}
+          className={`flex justify-start ${isNew ? "animate-fade-in" : ""}`}
+        >
+          <div className="card-hover max-w-[75%] rounded-lg overflow-hidden"
+               style={{ border: "1px solid var(--rule)", background: "var(--card)" }}>
+            <div className="px-4 py-3" style={{ paddingTop: "14px" }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full inline-block" style={{ background: "var(--green)" }} />
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 500, color: "var(--foreground)" }}>
+                  Critic
+                </span>
+                <span className="eyebrow">{ev.action}</span>
+                {ev.engine && (
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)" }}>
+                    {ev.engine}
+                  </span>
+                )}
+                <span className="ml-auto" style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)" }}>
+                  {time}
+                </span>
+              </div>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: "14px", color: "var(--foreground)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                {ev.content}
+              </p>
             </div>
-            <p className="text-sm text-gray-200 whitespace-pre-wrap">
-              {ev.content}
-            </p>
           </div>
         </div>
       );
@@ -236,62 +280,52 @@ export default function Home() {
 
     // Fallback
     return (
-      <div key={i} className="flex justify-center">
-        <div className="rounded border border-gray-700 bg-gray-800/50 px-3 py-1 text-xs text-gray-500">
-          {ev.type}: {ev.content?.slice(0, 100)}
+      <div key={i} className={`flex justify-center ${isNew ? "animate-fade-in" : ""}`}>
+        <div className="rounded px-3 py-2" style={{ border: "1px solid var(--rule)", background: "var(--card)" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-tertiary)" }}>
+            {ev.type}: {ev.content?.slice(0, 100)}
+          </span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-[#0a0a0a] text-gray-200 font-mono">
-      {/* Header */}
-      <header className="flex items-center gap-4 px-5 py-3 bg-[#111] border-b border-gray-800 flex-wrap">
-        <h1 className="text-lg font-bold text-emerald-400 tracking-tight">
+    <div className="flex flex-col h-screen" style={{ background: "var(--background)" }}>
+      {/* Doctrine: 2px green progress bar at top */}
+      <div className="progress-bar" style={{ transform: `scaleX(${scrollProgress})` }} />
+
+      {/* Doctrine: Frosted glass nav */}
+      <header className="glass flex items-center gap-4 px-6 py-4"
+              style={{ borderBottom: "1px solid var(--rule)" }}>
+        {/* Doctrine: Bebas Neue for display text */}
+        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "24px", color: "var(--green)", letterSpacing: "0.05em", lineHeight: 1 }}>
           AXE LIVE
         </h1>
+
         <div className="flex items-center gap-2">
           <span
-            className={`w-2 h-2 rounded-full ${connected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
+            className={`w-2 h-2 rounded-full ${connected ? "pulse-green" : ""}`}
+            style={{ background: connected ? "var(--green)" : "#ff4444" }}
           />
-          <span className="text-xs text-gray-500">
-            {connected ? "Connected" : "Disconnected"}
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+            {connected ? "Live" : "Offline"}
           </span>
         </div>
-        <div className="ml-auto flex items-center gap-3 text-xs text-gray-600">
+
+        <div className="ml-auto flex items-center gap-4">
           {health && (
             <>
-              <span>
-                Ollama:{" "}
-                <span
-                  className={
-                    health.ollama === "up"
-                      ? "text-emerald-400"
-                      : "text-red-400"
-                  }
-                >
-                  {health.ollama}
-                </span>
-              </span>
-              <span>
-                Memory:{" "}
-                <span
-                  className={
-                    health.memory === "available"
-                      ? "text-emerald-400"
-                      : "text-amber-400"
-                  }
-                >
-                  {health.memory}
-                </span>
-              </span>
-              <span className="text-gray-700">|</span>
-              <span className="text-gray-500">
+              <div className="flex items-center gap-2">
+                <span className="eyebrow">Ollama</span>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: health.ollama === "up" ? "var(--green)" : "#ff4444" }} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="eyebrow">Memory</span>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: health.memory === "available" ? "var(--green)" : "#ff4444" }} />
+              </div>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)" }}>
                 {health.exo_model_fast?.split("/").pop()}
-              </span>
-              <span className="text-gray-500">
-                {health.exo_model_heavy?.split("/").pop()}
               </span>
             </>
           )}
@@ -301,39 +335,63 @@ export default function Home() {
       {/* Event Feed */}
       <div
         ref={feedRef}
-        className="flex-1 overflow-y-auto px-5 py-4 space-y-3"
+        className="flex-1 overflow-y-auto px-6 py-4"
+        style={{ display: "flex", flexDirection: "column", gap: "16px" }}
       >
         {events.length === 0 && (
-          <div className="flex items-center justify-center h-full text-gray-600 text-sm">
-            Waiting for events...
+          <div className="flex flex-col items-center justify-center h-full gap-4">
+            <span style={{ fontFamily: "var(--font-display)", fontSize: "48px", color: "var(--rule)", letterSpacing: "0.05em" }}>
+              AXE
+            </span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.22em" }}>
+              Waiting for events
+            </span>
           </div>
         )}
         {events.map(renderEvent)}
       </div>
 
-      {/* Input Bar */}
-      <div className="px-5 py-3 bg-[#111] border-t border-gray-800">
-        <div className="flex items-center gap-3">
+      {/* Doctrine: Frosted glass input bar, 8px grid spacing */}
+      <div className="glass px-6 py-4" style={{ borderTop: "1px solid var(--rule)" }}>
+        <div className="flex items-center gap-4">
+          {/* Agent selector — mobile-friendly 44px min touch target */}
           <select
             value={agent}
             onChange={(e) => setAgent(e.target.value)}
-            className="bg-[#1a1a1a] border border-gray-700 text-gray-300 text-sm rounded px-2 py-2 outline-none focus:border-emerald-500"
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "12px",
+              background: "var(--background)",
+              border: "1px solid var(--rule)",
+              color: "var(--foreground)",
+              borderRadius: "4px",
+              padding: "10px 12px",
+              minHeight: "44px",
+              outline: "none",
+            }}
           >
-            <option value="Forge">Forge</option>
-            <option value="Cortana">Cortana</option>
-            <option value="Klaus">Klaus</option>
-            <option value="Axwell">Axwell</option>
-            <option value="Critic">Critic</option>
+            {AGENTS.map((a) => (
+              <option key={a} value={a}>{a}</option>
+            ))}
           </select>
-          <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer">
+
+          {/* Heavy toggle — 44px touch target */}
+          <label
+            className="flex items-center gap-2 cursor-pointer"
+            style={{ minHeight: "44px", minWidth: "44px", padding: "0 4px" }}
+          >
             <input
               type="checkbox"
               checked={heavy}
               onChange={(e) => setHeavy(e.target.checked)}
-              className="accent-emerald-500"
+              style={{ accentColor: "var(--green)", width: "16px", height: "16px" }}
             />
-            Heavy
+            <span className="eyebrow" style={{ color: heavy ? "var(--green)" : "var(--text-tertiary)" }}>
+              Heavy
+            </span>
           </label>
+
+          {/* Message input */}
           <input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -341,13 +399,43 @@ export default function Home() {
               e.key === "Enter" && !e.shiftKey && sendMessage()
             }
             placeholder="Send a message..."
-            className="flex-1 bg-[#1a1a1a] border border-gray-700 text-gray-200 text-sm rounded px-4 py-2 outline-none focus:border-emerald-500"
             disabled={sending}
+            style={{
+              flex: 1,
+              fontFamily: "var(--font-body)",
+              fontSize: "14px",
+              background: "var(--background)",
+              border: "1px solid var(--rule)",
+              color: "var(--foreground)",
+              borderRadius: "4px",
+              padding: "10px 16px",
+              minHeight: "44px",
+              outline: "none",
+              transition: "border-color 150ms",
+            }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--green)")}
+            onBlur={(e) => (e.target.style.borderColor = "var(--rule)")}
           />
+
+          {/* Send button — doctrine green */}
           <button
             onClick={sendMessage}
             disabled={sending || !message.trim()}
-            className="bg-emerald-500 text-black font-bold text-sm px-5 py-2 rounded hover:bg-emerald-400 disabled:opacity-30 transition-colors"
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "12px",
+              fontWeight: 500,
+              textTransform: "uppercase",
+              letterSpacing: "0.15em",
+              background: sending || !message.trim() ? "var(--rule)" : "var(--green)",
+              color: sending || !message.trim() ? "var(--text-tertiary)" : "#0A0A0A",
+              border: "none",
+              borderRadius: "4px",
+              padding: "10px 24px",
+              minHeight: "44px",
+              cursor: sending || !message.trim() ? "default" : "pointer",
+              transition: "all 150ms",
+            }}
           >
             {sending ? "..." : "Send"}
           </button>
