@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import Link from "next/link";
 import AuthGate from "./auth-gate";
 
 const CHAT_CENTRE =
@@ -301,9 +302,17 @@ export default function Home() {
       <header className="glass flex items-center gap-4 px-6 py-4"
               style={{ borderBottom: "1px solid var(--rule)" }}>
         {/* Doctrine: Bebas Neue for display text */}
-        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "24px", color: "var(--green)", letterSpacing: "0.05em", lineHeight: 1 }}>
-          AXE LIVE
-        </h1>
+        <Link href="/" style={{ textDecoration: "none" }}>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "24px", color: "var(--green)", letterSpacing: "0.05em", lineHeight: 1 }}>
+            AXE LIVE
+          </h1>
+        </Link>
+
+        <nav className="flex items-center gap-4">
+          <Link href="/" className="eyebrow" style={{ color: "var(--green)", textDecoration: "none" }}>Dashboard</Link>
+          <Link href="/apps" className="eyebrow" style={{ color: "var(--text-tertiary)", textDecoration: "none" }}>Apps</Link>
+          <Link href="/live" className="eyebrow" style={{ color: "var(--text-tertiary)", textDecoration: "none" }}>Live Feeds</Link>
+        </nav>
 
         <div className="flex items-center gap-2">
           <span
