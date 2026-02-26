@@ -69,6 +69,16 @@ const MACHINES: MachineConfig[] = [
   },
 ];
 
+type WakeDiag = {
+  machine: string;
+  ip: string;
+  hostReachable: boolean;
+  services: { name: string; port: number; up: boolean; latency: number; detail?: string; startCmd?: string }[];
+  allUp: boolean;
+  diagnosis: string;
+  fixSteps: string[];
+};
+
 export default function LiveFeedsPage() {
   const [feeds, setFeeds] = useState<Record<string, FeedEvent[]>>({
     JL1: [], JL2: [], JLa: [], JLb: [],
@@ -77,7 +87,25 @@ export default function LiveFeedsPage() {
     JL1: false, JL2: false, JLa: false, JLb: false,
   });
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [waking, setWaking] = useState<Record<string, boolean>>({});
+  const [diag, setDiag] = useState<Record<string, WakeDiag | null>>({});
+  const [diagOpen, setDiagOpen] = useState<Record<string, boolean>>({});
   const feedRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const wakeMachine = useCallback(async (machineId: string) => {
+    setWaking((p) => ({ ...p, [machineId]: true }));
+    setDiag((p) => ({ ...p, [machineId]: null }));
+    setDiagOpen((p) => ({ ...p, [machineId]: true }));
+    try {
+      const res = await fetch(`/api/wake?machine=${machineId}`);
+      if (res.ok) {
+        const data: WakeDiag = await res.json();
+        setDiag((p) => ({ ...p, [machineId]: data }));
+        if (data.allUp) setConnected((p) => ({ ...p, [machineId]: true }));
+      }
+    } catch { /* */ }
+    setWaking((p) => ({ ...p, [machineId]: false }));
+  }, []);
 
   // Connect to Chat Centre WebSocket (JLa) for real-time events
   useEffect(() => {
@@ -283,29 +311,43 @@ export default function LiveFeedsPage() {
                   </div>
                 </div>
 
-                {/* Agent status boxes */}
+                {/* Agent status boxes + wake controls */}
                 {machine.agents.length > 0 && (
                   <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--rule)" }}>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                       {machine.agents.map((a) => {
                         const lastEvent = [...machineFeed].reverse().find((ev) => ev.agent?.toLowerCase() === a.toLowerCase());
-                        const isActive = lastEvent && (Date.now() - new Date(lastEvent.ts).getTime()) < 120000;
-                        const summary = lastEvent
-                          ? lastEvent.type === "heartbeat"
-                            ? "Standing by"
-                            : lastEvent.content.length > 80
-                              ? lastEvent.content.slice(0, 77) + "..."
-                              : lastEvent.content
-                          : "No recent activity";
+                        const ageSec = lastEvent ? (Date.now() - new Date(lastEvent.ts).getTime()) / 1000 : Infinity;
+                        const isActive = ageSec < 120;
+                        const isSleeping = !isActive && !isConnected;
+
+                        // Smarter summary based on event type
+                        let summary: string;
+                        let summaryColor = "var(--text-tertiary)";
+                        if (!isConnected) {
+                          summary = "Offline — machine unreachable";
+                          summaryColor = "#ff4444";
+                        } else if (!lastEvent) {
+                          summary = "Online, waiting for activity";
+                        } else if (lastEvent.type === "heartbeat") {
+                          summary = "Standing by — no active tasks";
+                        } else if (isActive) {
+                          summary = lastEvent.content.length > 100 ? lastEvent.content.slice(0, 97) + "..." : lastEvent.content;
+                          summaryColor = "var(--text-secondary)";
+                        } else {
+                          const mins = Math.floor(ageSec / 60);
+                          const ago = mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`;
+                          summary = `Last active ${ago}: ${lastEvent.content.slice(0, 60)}${lastEvent.content.length > 60 ? "..." : ""}`;
+                        }
 
                         return (
                           <div
                             key={a}
                             style={{
                               flex: "1 1 0",
-                              minWidth: 120,
+                              minWidth: 130,
                               background: "var(--background)",
-                              border: `1px solid ${isActive ? "var(--green)" : "var(--rule)"}`,
+                              border: `1px solid ${isActive ? "var(--green)" : isSleeping ? "rgba(255,68,68,0.3)" : "var(--rule)"}`,
                               borderRadius: "6px",
                               padding: "8px 10px",
                               transition: "border-color 150ms",
@@ -316,18 +358,22 @@ export default function LiveFeedsPage() {
                                 className={isActive ? "pulse-green" : ""}
                                 style={{
                                   width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
-                                  background: isActive ? "var(--green)" : "var(--text-tertiary)",
+                                  background: isActive ? "var(--green)" : isSleeping ? "#ff4444" : "var(--text-tertiary)",
                                 }}
                               />
-                              <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600, color: isActive ? "var(--green)" : "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                              <span style={{
+                                fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600,
+                                color: isActive ? "var(--green)" : isSleeping ? "#ff4444" : "var(--text-secondary)",
+                                textTransform: "uppercase", letterSpacing: "0.08em",
+                              }}>
                                 {a}
                               </span>
-                              <span style={{ marginLeft: "auto", fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-tertiary)" }}>
-                                {isActive ? "Active" : "Idle"}
+                              <span style={{ marginLeft: "auto", fontFamily: "var(--font-mono)", fontSize: "9px", color: isActive ? "var(--green)" : isSleeping ? "#ff4444" : "var(--text-tertiary)" }}>
+                                {isActive ? "Active" : isSleeping ? "Down" : "Idle"}
                               </span>
                             </div>
                             <p style={{
-                              fontFamily: "var(--font-body)", fontSize: "11px", color: "var(--text-tertiary)",
+                              fontFamily: "var(--font-body)", fontSize: "11px", color: summaryColor,
                               lineHeight: 1.4, margin: 0,
                               overflow: "hidden", textOverflow: "ellipsis",
                               display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const,
@@ -338,6 +384,125 @@ export default function LiveFeedsPage() {
                         );
                       })}
                     </div>
+
+                    {/* Wake / Diagnose button — shows when machine is offline */}
+                    {!isConnected && machine.id !== "JLb" && (
+                      <div style={{ marginTop: "8px" }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); wakeMachine(machine.id); }}
+                          disabled={waking[machine.id]}
+                          style={{
+                            fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 500,
+                            textTransform: "uppercase", letterSpacing: "0.1em",
+                            background: waking[machine.id] ? "var(--rule)" : "var(--green)",
+                            color: waking[machine.id] ? "var(--text-tertiary)" : "#0A0A0A",
+                            border: "none", borderRadius: "4px",
+                            padding: "8px 16px", cursor: waking[machine.id] ? "default" : "pointer",
+                            transition: "all 150ms", width: "100%",
+                          }}
+                        >
+                          {waking[machine.id] ? "Diagnosing..." : "Wake / Diagnose"}
+                        </button>
+
+                        {/* Diagnostic results panel */}
+                        {diagOpen[machine.id] && diag[machine.id] && (() => {
+                          const d = diag[machine.id]!;
+                          return (
+                            <div style={{
+                              marginTop: "8px", padding: "12px", borderRadius: "6px",
+                              background: "var(--background)", border: "1px solid var(--rule)",
+                            }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                                <span style={{
+                                  fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600,
+                                  color: d.allUp ? "var(--green)" : "#ff4444",
+                                  textTransform: "uppercase", letterSpacing: "0.08em",
+                                }}>
+                                  {d.allUp ? "All Systems Go" : "Issues Found"}
+                                </span>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setDiagOpen((p) => ({ ...p, [machine.id]: false })); }}
+                                  style={{
+                                    fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)",
+                                    background: "none", border: "none", cursor: "pointer", padding: "2px 6px",
+                                  }}
+                                >
+                                  close
+                                </button>
+                              </div>
+
+                              {/* Diagnosis */}
+                              <p style={{
+                                fontFamily: "var(--font-body)", fontSize: "12px",
+                                color: "var(--foreground)", lineHeight: 1.5, margin: "0 0 8px 0",
+                              }}>
+                                {d.diagnosis}
+                              </p>
+
+                              {/* Service status */}
+                              {d.services.length > 0 && (
+                                <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: d.fixSteps.length ? "8px" : 0 }}>
+                                  {d.services.map((svc) => (
+                                    <div key={svc.name} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                      <span style={{
+                                        width: 6, height: 6, borderRadius: "50%",
+                                        background: svc.up ? "var(--green)" : "#ff4444", flexShrink: 0,
+                                      }} />
+                                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: svc.up ? "var(--text-secondary)" : "#ff4444" }}>
+                                        {svc.name} :{svc.port}
+                                      </span>
+                                      {svc.up && (
+                                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-tertiary)", marginLeft: "auto" }}>
+                                          {svc.latency}ms
+                                        </span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Fix steps */}
+                              {d.fixSteps.length > 0 && (
+                                <div style={{
+                                  background: "rgba(255,68,68,0.05)", borderRadius: "4px",
+                                  padding: "8px 10px", border: "1px solid rgba(255,68,68,0.15)",
+                                }}>
+                                  <span style={{
+                                    fontFamily: "var(--font-mono)", fontSize: "9px", fontWeight: 600,
+                                    color: "#ff4444", textTransform: "uppercase", letterSpacing: "0.08em",
+                                    display: "block", marginBottom: "6px",
+                                  }}>
+                                    How to fix
+                                  </span>
+                                  {d.fixSteps.map((step, i) => (
+                                    <div key={i} style={{ display: "flex", gap: "6px", marginBottom: "4px" }}>
+                                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)", flexShrink: 0 }}>
+                                        {i + 1}.
+                                      </span>
+                                      <span style={{
+                                        fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-secondary)",
+                                        lineHeight: 1.4, wordBreak: "break-all",
+                                      }}>
+                                        {step}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    {/* Reconnect button — shows when machine is connected but was recently diagnosed */}
+                    {isConnected && diagOpen[machine.id] && diag[machine.id]?.allUp && (
+                      <div style={{ marginTop: "8px", textAlign: "center" }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--green)" }}>
+                          Reconnected successfully
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
